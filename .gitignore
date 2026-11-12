@@ -1,0 +1,24 @@
+# Ansible
+*.retry
+*.pyc
+__pycache__/
+*.vault.yml
+
+# Molecule
+molecule/**/state/
+molecule/**/.cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Collection builds and ansible-test output
+/lingfish-crowdsec-*.tar.gz
+tests/output/
+.ansible/

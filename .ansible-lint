@@ -1,0 +1,9 @@
+---
+profile: production
+
+exclude_paths:
+  - .github/
+  - tests/output/
+
+skip_list:
+  - yaml[line-length]

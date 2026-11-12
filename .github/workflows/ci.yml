@@ -1,0 +1,119 @@
+---
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+env:
+  PY_COLORS: "1"
+  ANSIBLE_FORCE_COLOR: "1"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linting tools
+        run: pip install ansible-core ansible-lint yamllint
+
+      - name: Run yamllint
+        run: yamllint .
+
+      - name: Run ansible-lint
+        run: ansible-lint
+
+  ansible-test:
+    name: "ansible-test (${{ matrix.ansible }})"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ansible:
+          - stable-2.18
+          - stable-2.19
+          - stable-2.20
+          - stable-2.21
+          - stable-2.22
+    steps:
+      - name: Sanity
+        uses: ansible-community/ansible-test-gh-action@release/v1
+        with:
+          ansible-core-version: ${{ matrix.ansible }}
+          testing-type: sanity
+
+      - name: Units
+        uses: ansible-community/ansible-test-gh-action@release/v1
+        with:
+          ansible-core-version: ${{ matrix.ansible }}
+          testing-type: units
+
+  integration:
+    name: "Integration (CrowdSec ${{ matrix.crowdsec }})"
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        crowdsec:
+          - v1.6.8
+          - v1.7.6
+          - v1.8.2
+          - latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Build and install collection
+        run: |
+          ansible-galaxy collection build --force
+          ansible-galaxy collection install --force lingfish-crowdsec-*.tar.gz
+
+      - name: Run integration tests
+        run: tests/integration/run.sh ${{ matrix.crowdsec }}
+        env:
+          ANSIBLE_LOCALHOST_WARNING: "false"
+
+  publish:
+    name: Publish to Galaxy
+    needs: [lint, ansible-test, integration]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: pip install ansible-core
+
+      - name: Check release tag matches galaxy.yml version
+        run: |
+          version=$(python -c 'import yaml; print(yaml.safe_load(open("galaxy.yml"))["version"])')
+          test "${GITHUB_REF_NAME#v}" = "$version" || { echo "Tag $GITHUB_REF_NAME does not match galaxy.yml version $version"; exit 1; }
+
+      - name: Build collection
+        run: ansible-galaxy collection build
+
+      - name: Publish collection to Galaxy
+        run: ansible-galaxy collection publish lingfish-crowdsec-*.tar.gz --token "${{ secrets.GALAXY_API_KEY }}"

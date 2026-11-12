@@ -1,0 +1,61 @@
+---
+argument_specs:
+  main:
+    short_description: Manage CrowdSec with cscli
+    description:
+      - Manages CrowdSec centralized allowlists with the M(lingfish.crowdsec.allowlist) module.
+      - Must run on the host running the CrowdSec Local API, because cscli writes allowlists directly to its database.
+    author:
+      - Jason Lingohr (@lingfish)
+    options:
+      cscli_allowlists:
+        description: Allowlists to manage. Each item takes the options of M(lingfish.crowdsec.allowlist).
+        type: list
+        elements: dict
+        default: []
+        options:
+          name:
+            description: Name of the allowlist.
+            type: str
+            required: true
+          description:
+            description: Description of the allowlist. Required when the allowlist has to be created.
+            type: str
+          state:
+            description: Whether the allowlist should exist.
+            type: str
+            choices:
+              - present
+              - absent
+            default: present
+          entries:
+            description: Desired entries of the allowlist.
+            type: list
+            elements: dict
+            default: []
+            options:
+              value:
+                description: IP address or CIDR range.
+                type: str
+                required: true
+              comment:
+                description: Comment stored with the entry.
+                type: str
+                default: ""
+              expiration:
+                description: Duration such as 12h or 7d, applied when the entry is added. Omit for a permanent entry.
+                type: str
+          exclusive:
+            description: Remove entries that aren't listed. Defaults to O(cscli_allowlists_exclusive).
+            type: bool
+      cscli_allowlists_exclusive:
+        description: Default for each allowlist's O(cscli_allowlists[].exclusive) option.
+        type: bool
+        default: true
+      cscli_path:
+        description: Name or path of the cscli binary.
+        type: str
+        default: cscli
+      cscli_config:
+        description: CrowdSec configuration file passed to cscli --config. Unset uses cscli's default.
+        type: str

@@ -1,0 +1,29 @@
+---
+namespace: lingfish
+name: crowdsec
+version: 0.1.0
+readme: README.md
+authors:
+  - Jason Lingohr (@lingfish)
+description: Manage CrowdSec with cscli, starting with centralized allowlists.
+license:
+  - GPL-3.0-or-later
+tags:
+  - crowdsec
+  - security
+  - firewall
+  - allowlist
+dependencies: {}
+repository: https://github.com/lingfish/ansible-collection-crowdsec
+documentation: https://github.com/lingfish/ansible-collection-crowdsec#readme
+homepage: https://github.com/lingfish/ansible-collection-crowdsec
+issues: https://github.com/lingfish/ansible-collection-crowdsec/issues
+build_ignore:
+  - .github
+  - .gitignore
+  - .yamllint
+  - .ansible-lint
+  - AGENTS.md
+  - .ansible
+  - tests/output
+  - "*.tar.gz"

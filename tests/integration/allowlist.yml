@@ -1,0 +1,98 @@
+---
+# Integration tests against a real CrowdSec LAPI. Run with tests/integration/run.sh.
+- name: Integration test against a real CrowdSec LAPI
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  module_defaults:
+    lingfish.crowdsec.allowlist:
+      cscli_path: "{{ cscli_wrapper }}"
+  vars:
+    entries:
+      - value: 192.0.2.1
+        comment: office
+      - value: 192.0.2.2
+        comment: office
+      - value: 198.51.100.0/24
+        comment: vendor
+        expiration: 7d
+  tasks:
+    - name: Create in check mode
+      lingfish.crowdsec.allowlist: {name: infra, description: Infra, entries: "{{ entries }}"}
+      check_mode: true
+      register: r
+    - name: Assert check mode
+      ansible.builtin.assert:
+        that: [r is changed, r.commands | length == 3]
+
+    - name: Create
+      lingfish.crowdsec.allowlist: {name: infra, description: Infra, entries: "{{ entries }}"}
+      register: r
+    - name: Show
+      ansible.builtin.debug: {var: r}
+    - name: Assert created
+      ansible.builtin.assert:
+        that: [r is changed, r.allowlist.entries | length == 3]
+
+    - name: Again, idempotent
+      lingfish.crowdsec.allowlist: {name: infra, description: Infra, entries: "{{ entries }}"}
+      register: r
+    - name: Assert idempotent
+      ansible.builtin.assert:
+        that: [r is not changed]
+
+    - name: Hand-add an entry outside Ansible
+      ansible.builtin.command: "{{ cscli_wrapper }} allowlists add infra 203.0.113.9 -d manual"
+      changed_when: true
+
+    - name: Change a comment, drop one, exclusive removes the manual one
+      lingfish.crowdsec.allowlist:
+        name: infra
+        description: Different
+        entries:
+          - {value: 192.0.2.1, comment: hq}
+          - {value: 198.51.100.0/24, comment: vendor, expiration: 7d}
+      register: r
+      diff: true
+    - name: Show
+      ansible.builtin.debug: {var: r}
+    - name: Assert updated
+      ansible.builtin.assert:
+        that:
+          - r is changed
+          - r.allowlist.entries | map(attribute='value') | list == ['192.0.2.1', '198.51.100.0/24']
+          - (r.allowlist.entries | selectattr('value', 'eq', '192.0.2.1') | first).comment == 'hq'
+          - r.warnings | default([]) | length == 1
+
+    - name: Role run
+      ansible.builtin.include_role:
+        name: lingfish.crowdsec.cscli
+      vars:
+        cscli_path: "{{ cscli_wrapper }}"
+        cscli_allowlists:
+          - name: infra
+            entries:
+              - {value: 192.0.2.1, comment: hq}
+              - {value: 198.51.100.0/24, comment: vendor, expiration: 7d}
+          - name: second
+            description: Second list
+            entries: [{value: "2001:db8::/32"}]
+
+    - name: Invalid value is rejected
+      lingfish.crowdsec.allowlist: {name: infra, entries: [{value: bogus}]}
+      register: r
+      ignore_errors: true
+    - name: Assert rejected
+      ansible.builtin.assert:
+        that: [r is failed, "'Invalid allowlist entry' in r.msg"]
+
+    - name: Delete
+      lingfish.crowdsec.allowlist: {name: "{{ item }}", state: absent}
+      loop: [infra, second]
+      register: r
+    - name: Delete again
+      lingfish.crowdsec.allowlist: {name: infra, state: absent}
+      register: r2
+    - name: Assert deleted
+      ansible.builtin.assert:
+        that: [r is changed, r2 is not changed]

@@ -1,0 +1,13 @@
+---
+- name: Manage CrowdSec allowlists
+  lingfish.crowdsec.allowlist:
+    name: "{{ item.name }}"
+    description: "{{ item.description | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    entries: "{{ item.entries | default([]) }}"
+    exclusive: "{{ item.exclusive | default(cscli_allowlists_exclusive) }}"
+    cscli_path: "{{ cscli_path }}"
+    config: "{{ cscli_config | default(omit) }}"
+  loop: "{{ cscli_allowlists }}"
+  loop_control:
+    label: "{{ item.name }}"

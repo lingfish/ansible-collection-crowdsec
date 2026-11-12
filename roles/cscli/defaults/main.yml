@@ -1,0 +1,13 @@
+---
+# Allowlists to manage. Each item takes the options of lingfish.crowdsec.allowlist:
+# name, description, state, entries and exclusive.
+cscli_allowlists: []
+
+# Default for an allowlist's "exclusive" option: remove entries that aren't listed.
+cscli_allowlists_exclusive: true
+
+# Name or path of the cscli binary.
+cscli_path: cscli
+
+# CrowdSec configuration file passed to cscli --config. Unset uses cscli's default.
+# cscli_config: /etc/crowdsec/config.yaml
