@@ -25,13 +25,20 @@ jobs:
           python-version: "3.12"
 
       - name: Install linting tools
-        run: pip install ansible-core ansible-lint yamllint
+        run: pip install ansible-core ansible-lint yamllint galaxy-importer
 
       - name: Run yamllint
         run: yamllint .
 
       - name: Run ansible-lint
         run: ansible-lint
+
+      # Same checks Galaxy runs on import, so they fail here rather than at release.
+      - name: Run galaxy-importer
+        run: |
+          ansible-galaxy collection build --output-path "$RUNNER_TEMP"
+          printf '[galaxy-importer]\nRUN_ANSIBLE_TEST = False\nRUN_ANSIBLE_LINT = True\n' > "$RUNNER_TEMP/galaxy-importer.cfg"
+          GALAXY_IMPORTER_CONFIG="$RUNNER_TEMP/galaxy-importer.cfg" python -m galaxy_importer.main "$RUNNER_TEMP"/lingfish-crowdsec-*.tar.gz
 
   ansible-test:
     name: "ansible-test (${{ matrix.ansible }})"
